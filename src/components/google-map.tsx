@@ -1,11 +1,9 @@
 "use client"
 
-import { useCallback, useState, useRef, useEffect } from "react"
+import { useCallback, useState, useRef, useEffect, useMemo } from "react"
 import {
   GoogleMap,
   useJsApiLoader,
-  Marker,
-  InfoWindow,
   OverlayView,
 } from "@react-google-maps/api"
 
@@ -22,32 +20,29 @@ const defaultCenter = {
   lng: 77.209,
 }
 
-interface MapMarker {
+// Demo worker definition
+interface DemoWorker {
   id: string
-  position: { lat: number; lng: number }
-  title: string
-  description?: string
+  name: string
+  role: string
+  color: string
+  borderColor: string
+  initials: string
+  // Offset from user location in degrees (~111m per 0.001 deg)
+  latOffset: number
+  lngOffset: number
+  status: "active" | "idle" | "busy"
 }
 
-const sampleMarkers: MapMarker[] = [
-  {
-    id: "1",
-    position: { lat: 28.6139, lng: 77.209 },
-    title: "New Delhi",
-    description: "Capital city of India",
-  },
-  {
-    id: "2",
-    position: { lat: 19.076, lng: 72.8777 },
-    title: "Mumbai",
-    description: "Financial capital of India",
-  },
-  {
-    id: "3",
-    position: { lat: 12.9716, lng: 77.5946 },
-    title: "Bangalore",
-    description: "Silicon Valley of India",
-  },
+const demoWorkers: DemoWorker[] = [
+  { id: "w1", name: "Aarav Sharma", role: "Delivery Partner", color: "linear-gradient(135deg, #10b981, #059669)", borderColor: "#34d399", initials: "AS", latOffset: 0.003, lngOffset: 0.002, status: "active" },
+  { id: "w2", name: "Priya Patel", role: "Field Inspector", color: "linear-gradient(135deg, #f59e0b, #d97706)", borderColor: "#fbbf24", initials: "PP", latOffset: -0.002, lngOffset: 0.004, status: "active" },
+  { id: "w3", name: "Rohan Gupta", role: "Maintenance Crew", color: "linear-gradient(135deg, #ef4444, #dc2626)", borderColor: "#f87171", initials: "RG", latOffset: 0.005, lngOffset: -0.003, status: "busy" },
+  { id: "w4", name: "Sneha Reddy", role: "Survey Agent", color: "linear-gradient(135deg, #8b5cf6, #7c3aed)", borderColor: "#a78bfa", initials: "SR", latOffset: -0.004, lngOffset: -0.002, status: "active" },
+  { id: "w5", name: "Vikram Singh", role: "Delivery Partner", color: "linear-gradient(135deg, #06b6d4, #0891b2)", borderColor: "#22d3ee", initials: "VS", latOffset: 0.001, lngOffset: -0.005, status: "idle" },
+  { id: "w6", name: "Ananya Iyer", role: "Health Worker", color: "linear-gradient(135deg, #ec4899, #db2777)", borderColor: "#f472b6", initials: "AI", latOffset: -0.006, lngOffset: 0.001, status: "active" },
+  { id: "w7", name: "Karan Mehta", role: "Electrician", color: "linear-gradient(135deg, #f97316, #ea580c)", borderColor: "#fb923c", initials: "KM", latOffset: 0.004, lngOffset: 0.005, status: "busy" },
+  { id: "w8", name: "Divya Nair", role: "Plumber", color: "linear-gradient(135deg, #14b8a6, #0d9488)", borderColor: "#2dd4bf", initials: "DN", latOffset: -0.001, lngOffset: -0.006, status: "idle" },
 ]
 
 // Dark-themed map styles
@@ -126,6 +121,73 @@ const darkMapStyles: google.maps.MapTypeStyle[] = [
     stylers: [{ color: "#0e1538" }],
   },
 ]
+
+// Worker avatar overlay component
+function WorkerAvatarOverlay({
+  worker,
+  onClick,
+}: {
+  worker: DemoWorker
+  onClick: () => void
+}) {
+  const statusColor =
+    worker.status === "active"
+      ? "#10b981"
+      : worker.status === "busy"
+        ? "#ef4444"
+        : "#eab308"
+
+  return (
+    <div
+      style={{ transform: "translate(-50%, -50%)", cursor: "pointer" }}
+      onClick={onClick}
+    >
+      {/* Avatar circle */}
+      <div
+        style={{
+          position: "relative",
+          width: 32,
+          height: 32,
+          borderRadius: "50%",
+          border: `2.5px solid ${worker.borderColor}`,
+          background: worker.color,
+          boxShadow: `0 0 10px ${worker.borderColor}44, 0 2px 8px rgba(0,0,0,0.3)`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          transition: "transform 0.2s ease",
+        }}
+      >
+        <span
+          style={{
+            color: "white",
+            fontSize: 11,
+            fontWeight: 700,
+            fontFamily: "system-ui, sans-serif",
+            letterSpacing: 0.5,
+          }}
+        >
+          {worker.initials}
+        </span>
+
+        {/* Status dot */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: -2,
+            right: -2,
+            width: 10,
+            height: 10,
+            borderRadius: "50%",
+            background: statusColor,
+            border: "2px solid #1a1a2e",
+            boxShadow: `0 0 6px ${statusColor}88`,
+          }}
+        />
+      </div>
+    </div>
+  )
+}
 
 // User avatar overlay component
 function UserAvatarOverlay({ heading }: { heading: number | null }) {
@@ -209,6 +271,26 @@ function UserAvatarOverlay({ heading }: { heading: number | null }) {
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
           <circle cx="12" cy="7" r="4" />
         </svg>
+        {/* "You" label */}
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          top: 38,
+          left: "50%",
+          transform: "translateX(-50%)",
+          fontSize: 9,
+          fontWeight: 700,
+          color: "#818cf8",
+          background: "rgba(15,15,30,0.85)",
+          padding: "1px 6px",
+          borderRadius: 4,
+          whiteSpace: "nowrap",
+          fontFamily: "system-ui, sans-serif",
+          letterSpacing: 0.5,
+        }}
+      >
+        YOU
       </div>
 
       {/* Inject keyframe animation */}
@@ -227,7 +309,7 @@ export default function GoogleMapView() {
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
   })
 
-  const [selectedMarker, setSelectedMarker] = useState<MapMarker | null>(null)
+  const [selectedWorker, setSelectedWorker] = useState<DemoWorker | null>(null)
   const [userLocation, setUserLocation] = useState<{
     lat: number
     lng: number
@@ -359,32 +441,112 @@ export default function GoogleMapView() {
           fullscreenControl: true,
         }}
       >
-        {/* Sample city markers */}
-        {sampleMarkers.map((marker) => (
-          <Marker
-            key={marker.id}
-            position={marker.position}
-            title={marker.title}
-            onClick={() => setSelectedMarker(marker)}
-          />
-        ))}
+        {/* Demo worker avatars (positioned relative to user) */}
+        {userLocation &&
+          demoWorkers.map((worker) => (
+            <OverlayView
+              key={worker.id}
+              position={{
+                lat: userLocation.lat + worker.latOffset,
+                lng: userLocation.lng + worker.lngOffset,
+              }}
+              mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+            >
+              <WorkerAvatarOverlay
+                worker={worker}
+                onClick={() => setSelectedWorker(worker)}
+              />
+            </OverlayView>
+          ))}
 
-        {selectedMarker && (
-          <InfoWindow
-            position={selectedMarker.position}
-            onCloseClick={() => setSelectedMarker(null)}
+        {/* Worker info popup */}
+        {selectedWorker && userLocation && (
+          <OverlayView
+            position={{
+              lat: userLocation.lat + selectedWorker.latOffset,
+              lng: userLocation.lng + selectedWorker.lngOffset,
+            }}
+            mapPaneName={OverlayView.FLOAT_PANE}
           >
-            <div className="p-1">
-              <h3 className="font-semibold text-sm text-gray-900">
-                {selectedMarker.title}
-              </h3>
-              {selectedMarker.description && (
-                <p className="text-xs text-gray-600 mt-1">
-                  {selectedMarker.description}
-                </p>
-              )}
+            <div
+              style={{
+                transform: "translate(-50%, -120%)",
+                background: "rgba(15, 15, 30, 0.95)",
+                backdropFilter: "blur(12px)",
+                border: `1px solid ${selectedWorker.borderColor}44`,
+                borderRadius: 12,
+                padding: "10px 14px",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+                minWidth: 160,
+                cursor: "default",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <div
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: "50%",
+                    background: selectedWorker.color,
+                    border: `2px solid ${selectedWorker.borderColor}`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: "white",
+                    fontFamily: "system-ui",
+                  }}
+                >
+                  {selectedWorker.initials}
+                </div>
+                <div>
+                  <div style={{ color: "#e2e8f0", fontSize: 13, fontWeight: 600, fontFamily: "system-ui" }}>
+                    {selectedWorker.name}
+                  </div>
+                  <div style={{ color: "#8892b0", fontSize: 11, fontFamily: "system-ui" }}>
+                    {selectedWorker.role}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background:
+                      selectedWorker.status === "active"
+                        ? "#10b981"
+                        : selectedWorker.status === "busy"
+                          ? "#ef4444"
+                          : "#eab308",
+                  }}
+                />
+                <span style={{ color: "#94a3b8", fontSize: 11, fontFamily: "system-ui", textTransform: "capitalize" }}>
+                  {selectedWorker.status}
+                </span>
+              </div>
+              <button
+                onClick={() => setSelectedWorker(null)}
+                style={{
+                  position: "absolute",
+                  top: 6,
+                  right: 8,
+                  background: "none",
+                  border: "none",
+                  color: "#64748b",
+                  cursor: "pointer",
+                  fontSize: 14,
+                  lineHeight: 1,
+                  padding: 2,
+                }}
+              >
+                ×
+              </button>
             </div>
-          </InfoWindow>
+          </OverlayView>
         )}
 
         {/* Live user avatar */}
