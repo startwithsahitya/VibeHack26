@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { GoogleSignInButton } from "@/components/GoogleSignInButton"
-import { createClient } from "@/lib/supabase/client"
+import { supabase } from "@/lib/supabase/client"
 
 export function LoginForm({
   className,
@@ -35,7 +35,6 @@ export function LoginForm({
     const email = formData.get("email") as string
     const password = formData.get("password") as string
 
-    const supabase = createClient()
     const { error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,

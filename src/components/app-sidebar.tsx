@@ -74,8 +74,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   React.useEffect(() => {
     const fetchUser = async () => {
-      const { createClient } = await import("@/lib/supabase/client")
-      const supabase = createClient()
+      const { supabase } = await import("@/lib/supabase/client")
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         setUserData({
