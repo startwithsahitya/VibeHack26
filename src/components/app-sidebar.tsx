@@ -35,7 +35,7 @@ const data = {
   navMain: [
     {
       title: "Playground",
-      url: "#",
+      url: "/playground",
       icon: (
         <HugeiconsIcon icon={ComputerTerminalIcon} strokeWidth={2} />
       ),
@@ -47,21 +47,21 @@ const data = {
   projects: [
     {
       name: "Design Engineering",
-      url: "#",
+      url: "/design-engineering",
       icon: (
         <HugeiconsIcon icon={CropIcon} strokeWidth={2} />
       ),
     },
     {
       name: "Sales & Marketing",
-      url: "#",
+      url: "/sales-and-marketing",
       icon: (
         <HugeiconsIcon icon={PieChartIcon} strokeWidth={2} />
       ),
     },
     {
       name: "Travel",
-      url: "#",
+      url: "/travel",
       icon: (
         <HugeiconsIcon icon={MapsIcon} strokeWidth={2} />
       ),
